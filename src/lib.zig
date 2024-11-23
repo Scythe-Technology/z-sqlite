@@ -153,11 +153,12 @@ pub const Database = struct {
         return db;
     }
 
-    pub fn close(db: Database) void {
-        checkError(c.sqlite3_close_v2(db.ptr)) catch |err| {
-            const msg = c.sqlite3_errmsg(db.ptr);
-            std.debug.panic("sqlite3_close_v2: {s} {s}", .{ @errorName(err), msg });
-        };
+    pub fn getErrorMessage(db: Database) []const u8 {
+        return std.mem.span(c.sqlite3_errmsg(db.ptr));
+    }
+
+    pub fn close(db: Database) !void {
+        try checkError(c.sqlite3_close_v2(db.ptr));
     }
 
     pub fn prepare(db: Database, sql: []const u8) !Statement {
