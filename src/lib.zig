@@ -180,7 +180,7 @@ pub const Value = union(enum) {
     text: []const u8,
 };
 
-const Statement = struct {
+pub const Statement = struct {
     ptr: ?*c.sqlite3_stmt = null,
 
     param_list: std.ArrayList(TypeInfo),
