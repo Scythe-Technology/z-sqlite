@@ -414,14 +414,14 @@ pub const Statement = struct {
 
 test "Open/Close (memory)" {
     const db = try Database.open(std.testing.allocator, .{});
-    defer db.close();
+    defer db.close() catch {};
 }
 
 test "Insert" {
     const allocator = std.testing.allocator;
 
     const db = try Database.open(allocator, .{});
-    defer db.close();
+    defer db.close() catch {};
 
     try db.exec("CREATE TABLE users(id TEXT PRIMARY KEY, age FLOAT)", &.{});
 
@@ -467,7 +467,7 @@ test "Count" {
     const allocator = std.testing.allocator;
 
     const db = try Database.open(allocator, .{});
-    defer db.close();
+    defer db.close() catch {};
 
     try db.exec("CREATE TABLE users(id TEXT PRIMARY KEY, age FLOAT)", &.{});
     try db.exec("INSERT INTO users VALUES(\"a\", 21)", &.{});
@@ -507,7 +507,7 @@ test "Example" {
     const allocator = std.testing.allocator;
 
     const db = try Database.open(allocator, .{});
-    defer db.close();
+    defer db.close() catch {};
 
     try db.exec("CREATE TABLE users (id TEXT PRIMARY KEY, age FLOAT)", &.{});
 
@@ -573,7 +573,7 @@ test "Deserialize" {
     defer tmp.cleanup();
 
     const db1 = try open(allocator, tmp.dir, "db.sqlite");
-    defer db1.close();
+    defer db1.close() catch {};
 
     try db1.exec("CREATE TABLE users (id INTEGER PRIMARY KEY)", &.{});
     try db1.exec("INSERT INTO users VALUES (:id)", &.{.{ .i64 = 0 }});
@@ -586,7 +586,7 @@ test "Deserialize" {
     defer allocator.free(data);
 
     const db2 = try Database.import(allocator, data);
-    defer db2.close();
+    defer db2.close() catch {};
 
     var rows = std.ArrayList(?Value).init(allocator);
     defer rows.deinit();
