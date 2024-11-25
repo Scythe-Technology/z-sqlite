@@ -171,6 +171,14 @@ pub const Database = struct {
 
         try stmt.exec(db.allocator, params);
     }
+
+    pub fn getLastInsertRowId(db: Database) i64 {
+        return @intCast(c.sqlite3_last_insert_rowid(db.ptr));
+    }
+
+    pub fn countChanges(db: Database) i64 {
+        return @intCast(c.sqlite3_changes64(db.ptr));
+    }
 };
 
 pub const Value = union(enum) {
@@ -515,8 +523,14 @@ test "Example" {
     defer insert.deinit();
 
     try insert.exec(allocator, &.{ .{ .text = "a" }, .{ .f64 = 21 } });
+    try std.testing.expectEqual(1, db.countChanges());
+    try std.testing.expectEqual(1, db.getLastInsertRowId());
     try insert.exec(allocator, &.{ .{ .text = "b" }, .{ .f64 = 20 } });
+    try std.testing.expectEqual(1, db.countChanges());
+    try std.testing.expectEqual(2, db.getLastInsertRowId());
     try insert.exec(allocator, &.{ .{ .text = "c" }, null });
+    try std.testing.expectEqual(1, db.countChanges());
+    try std.testing.expectEqual(3, db.getLastInsertRowId());
 
     const select = try db.prepare("SELECT * FROM users WHERE age >= :min");
     defer select.deinit();
