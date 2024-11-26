@@ -228,7 +228,7 @@ pub const Statement = struct {
                 if (name.len == 0) {
                     return error.InvalidParameter;
                 } else switch (name[0]) {
-                    ':', '$', '@' => {},
+                    ':', '$', '@', '?' => {},
                     else => return error.InvalidParameter,
                 }
                 try stmt.param_list.append(.{
