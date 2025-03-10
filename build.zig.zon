@@ -1,6 +1,6 @@
 .{
-    .name = "z-sqlite",
-    .version = "0.0.1",
+    .name = .z_sqlite,
+    .version = "0.0.2",
     .dependencies = .{},
     .paths = .{
         "build.zig",
@@ -9,4 +9,5 @@
         "LICENSE",
         "README.md",
     },
+    .fingerprint = 0x8456ec4eb020a8b7,
 }
