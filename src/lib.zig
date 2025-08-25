@@ -166,8 +166,8 @@ pub const Database = struct {
     }
 
     pub fn exec(db: Database, sql: []const u8, params: []const ?Value) !void {
-        const stmt = try Statement.prepare(db.allocator, db, sql);
-        defer stmt.deinit();
+        var stmt = try Statement.prepare(db.allocator, db, sql);
+        defer stmt.deinit(db.allocator);
 
         try stmt.exec(db.allocator, params);
     }
@@ -205,8 +205,8 @@ pub const Statement = struct {
     pub fn prepare(allocator: std.mem.Allocator, db: Database, sql: []const u8) !Self {
         var stmt = Self{
             .ptr = null,
-            .param_list = std.ArrayList(TypeInfo).init(allocator),
-            .column_list = std.ArrayList(TypeInfo).init(allocator),
+            .param_list = .empty,
+            .column_list = .empty,
         };
 
         try checkError(c.sqlite3_prepare_v2(db.ptr, sql.ptr, @intCast(sql.len), &stmt.ptr, null));
@@ -231,7 +231,7 @@ pub const Statement = struct {
                     ':', '$', '@', '?' => {},
                     else => return error.InvalidParameter,
                 }
-                try stmt.param_list.append(.{
+                try stmt.param_list.append(allocator, .{
                     .name = name,
                     .index = @intCast(idx),
                 });
@@ -249,7 +249,7 @@ pub const Statement = struct {
                 }
 
                 const name = std.mem.span(column_name);
-                try stmt.column_list.append(.{
+                try stmt.column_list.append(allocator, .{
                     .name = name,
                     .index = @intCast(n),
                 });
@@ -259,9 +259,9 @@ pub const Statement = struct {
         return stmt;
     }
 
-    pub fn deinit(stmt: Self) void {
-        stmt.param_list.deinit();
-        stmt.column_list.deinit();
+    pub fn deinit(stmt: *Self, allocator: std.mem.Allocator) void {
+        stmt.param_list.deinit(allocator);
+        stmt.column_list.deinit(allocator);
 
         checkError(c.sqlite3_finalize(stmt.ptr)) catch |err| {
             const db = c.sqlite3_db_handle(stmt.ptr);
@@ -434,8 +434,8 @@ test "Insert" {
     try db.exec("CREATE TABLE users(id TEXT PRIMARY KEY, age FLOAT)", &.{});
 
     {
-        const insert = try db.prepare("INSERT INTO users VALUES (:id, :age)");
-        defer insert.deinit();
+        var insert = try db.prepare("INSERT INTO users VALUES (:id, :age)");
+        defer insert.deinit(allocator);
 
         try insert.exec(allocator, &.{ .{ .text = "a" }, .{ .f64 = 5 } });
         try insert.exec(allocator, &.{ .{ .text = "b" }, .{ .f64 = 7 } });
@@ -443,8 +443,8 @@ test "Insert" {
     }
 
     {
-        const select = try db.prepare("SELECT id, age FROM users");
-        defer select.deinit();
+        var select = try db.prepare("SELECT id, age FROM users");
+        defer select.deinit(allocator);
 
         try select.bind(&.{});
         defer select.reset();
@@ -483,8 +483,8 @@ test "Count" {
     try db.exec("INSERT INTO users VALUES(\"c\", NULL)", &.{});
 
     {
-        const select = try db.prepare("SELECT age FROM users");
-        defer select.deinit();
+        var select = try db.prepare("SELECT age FROM users");
+        defer select.deinit(allocator);
 
         try select.bind(&.{});
         defer select.reset();
@@ -497,8 +497,8 @@ test "Count" {
     }
 
     {
-        const select = try db.prepare("SELECT count(*) as count FROM users");
-        defer select.deinit();
+        var select = try db.prepare("SELECT count(*) as count FROM users");
+        defer select.deinit(allocator);
 
         try select.bind(&.{});
         defer select.reset();
@@ -519,8 +519,8 @@ test "Example" {
 
     try db.exec("CREATE TABLE users (id TEXT PRIMARY KEY, age FLOAT)", &.{});
 
-    const insert = try db.prepare("INSERT INTO users VALUES (:id, :age)");
-    defer insert.deinit();
+    var insert = try db.prepare("INSERT INTO users VALUES (:id, :age)");
+    defer insert.deinit(allocator);
 
     try insert.exec(allocator, &.{ .{ .text = "a" }, .{ .f64 = 21 } });
     try std.testing.expectEqual(1, db.countChanges());
@@ -532,8 +532,8 @@ test "Example" {
     try std.testing.expectEqual(1, db.countChanges());
     try std.testing.expectEqual(3, db.getLastInsertRowId());
 
-    const select = try db.prepare("SELECT * FROM users WHERE age >= :min");
-    defer select.deinit();
+    var select = try db.prepare("SELECT * FROM users WHERE age >= :min");
+    defer select.deinit(allocator);
 
     // Get a single row
     {
@@ -602,18 +602,18 @@ test "Deserialize" {
     const db2 = try Database.import(allocator, data);
     defer db2.close() catch {};
 
-    var rows = std.ArrayList(?Value).init(allocator);
-    defer rows.deinit();
+    var rows: std.ArrayList(?Value) = .empty;
+    defer rows.deinit(allocator);
 
-    const stmt = try db2.prepare("SELECT id FROM users");
-    defer stmt.deinit();
+    var stmt = try db2.prepare("SELECT id FROM users");
+    defer stmt.deinit(allocator);
 
     try stmt.bind(&.{});
     defer stmt.reset();
 
     while (try stmt.step(allocator)) |row| {
         defer allocator.free(row);
-        try rows.append(row[0]);
+        try rows.append(allocator, row[0]);
     }
 
     try std.testing.expectEqual(2, rows.items.len);
