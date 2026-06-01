@@ -571,9 +571,10 @@ test "Example" {
     }
 }
 
-fn open(allocator: std.mem.Allocator, dir: std.fs.Dir, name: []const u8) !Database {
-    const path_dir = try dir.realpathAlloc(allocator, ".");
-    defer allocator.free(path_dir);
+fn open(allocator: std.mem.Allocator, dir: std.Io.Dir, name: []const u8) !Database {
+    var buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const len = try dir.realPath(std.testing.io, &buf);
+    const path_dir = buf[0..len];
 
     const path_file = try std.fs.path.joinZ(allocator, &.{ path_dir, name });
     defer allocator.free(path_file);
@@ -593,10 +594,14 @@ test "Deserialize" {
     try db1.exec("INSERT INTO users VALUES (:id)", &.{.{ .i64 = 0 }});
     try db1.exec("INSERT INTO users VALUES (:id)", &.{.{ .i64 = 1 }});
 
-    const file = try tmp.dir.openFile("db.sqlite", .{});
-    defer file.close();
+    const file = try tmp.dir.openFile(std.testing.io, "db.sqlite", .{});
+    defer file.close(std.testing.io);
 
-    const data = try file.readToEndAlloc(allocator, 4096 * 8);
+    var buffer: [8192]u8 = undefined;
+    var file_reader = file.reader(std.testing.io, &buffer);
+    const reader = &file_reader.interface;
+
+    const data = try reader.allocRemaining(allocator, .limited(4096 * 8));
     defer allocator.free(data);
 
     const db2 = try Database.import(allocator, data);

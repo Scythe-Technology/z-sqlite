@@ -67,22 +67,6 @@ pub fn build(b: *std.Build) !void {
     if (b.option(bool, "SQLITE_USE_URI", "This option causes the URI filename process logic to be enabled by default.") orelse false)
         try flags.append(b.allocator, "-DSQLITE_USE_URI");
 
-    const lib = b.addLibrary(.{
-        .name = "z-sqlite-c",
-        .linkage = .static,
-        .root_module = b.createModule(.{
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-    lib.linkLibC();
-    lib.addCSourceFile(.{
-        .file = b.path("src/c/sqlite3.c"),
-        .flags = flags.items,
-    });
-
-    b.installArtifact(lib);
-
     const headers = b.addTranslateC(.{
         .root_source_file = b.path("src/c/sqlite3.h"),
         .target = target,
@@ -90,23 +74,21 @@ pub fn build(b: *std.Build) !void {
     });
     const c_module = headers.createModule();
 
-    c_module.linkLibrary(lib);
-
-    const module = b.addModule("z-sqlite", .{
+    const mod = b.addModule("root", .{
         .root_source_file = b.path("src/lib.zig"),
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
     });
-    module.addImport("c", c_module);
+    mod.addImport("c", c_module);
+    mod.addCSourceFile(.{
+        .file = b.path("src/c/sqlite3.c"),
+        .flags = flags.items,
+    });
 
     const unit_tests = b.addTest(.{
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/lib.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
+        .root_module = mod,
     });
-    unit_tests.root_module.addImport("c", c_module);
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
 
