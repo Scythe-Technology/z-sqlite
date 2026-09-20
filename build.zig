@@ -22,6 +22,18 @@ pub fn build(b: *std.Build) !void {
     if (b.option(bool, "SQLITE_ENABLE_COLUMN_METADATA", "When enabled, SQLite includes some additional APIs that provide convenient access to meta-data about tables and queries.") orelse false)
         try flags.append(b.allocator, "-DSQLITE_ENABLE_COLUMN_METADATA");
 
+    if (b.option(bool, "SQLITE_OMIT_LOAD_EXTENSION", "When enabled, the load_extension() SQL function is omitted from the build.") orelse false)
+        try flags.append(b.allocator, "-DSQLITE_OMIT_LOAD_EXTENSION");
+
+    if (b.option(bool, "SQLITE_OMIT_DEPRECATED", "When enabled, deprecated SQLite features are omitted from the build.") orelse false)
+        try flags.append(b.allocator, "-DSQLITE_OMIT_DEPRECATED");
+
+    if (b.option(bool, "SQLITE_OMIT_TRACE", "When enabled, the trace() SQL function is omitted from the build.") orelse false)
+        try flags.append(b.allocator, "-DSQLITE_OMIT_TRACE");
+
+    if (b.option(bool, "SQLITE_OMIT_COMPILEOPTION_DIAGS", "When enabled, the compile option diagnostics are omitted from the build.") orelse false)
+        try flags.append(b.allocator, "-DSQLITE_OMIT_COMPILEOPTION_DIAGS");
+
     const MAX_VARIABLE = b.option(u32, "SQLITE_MAX_VARIABLE_NUMBER", "") orelse 32766;
     try flags.append(b.allocator, try std.fmt.allocPrint(b.allocator, "-DSQLITE_MAX_VARIABLE_NUMBER={d}", .{MAX_VARIABLE}));
 
