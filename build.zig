@@ -86,17 +86,29 @@ pub fn build(b: *std.Build) !void {
     });
     const c_module = headers.createModule();
 
-    const mod = b.addModule("root", .{
-        .root_source_file = b.path("src/lib.zig"),
+    const sqlite3_mod = b.createModule(.{
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
-    mod.addImport("c", c_module);
-    mod.addCSourceFile(.{
+    sqlite3_mod.addCSourceFile(.{
         .file = b.path("src/c/sqlite3.c"),
         .flags = flags.items,
     });
+    const sqlite3_lib = b.addLibrary(.{
+        .name = "sqlite3",
+        .root_module = sqlite3_mod,
+    });
+
+    const mod = b.addModule("root", .{
+        .root_source_file = b.path("src/lib.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    mod.addImport("c", c_module);
+    mod.linkLibrary(sqlite3_lib);
+
+    b.installArtifact(sqlite3_lib);
 
     const unit_tests = b.addTest(.{
         .root_module = mod,
